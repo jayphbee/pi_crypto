@@ -71,35 +71,16 @@ fn aes_gcm_encrypt(
 ) -> Result<Vec<u8>, String> {
     let nonce = Nonce::try_assume_unique_for_key(nonce).map_err(|e| e.to_string())?;
 
-    match security_level {
-        128 => {
-            let less_safe_key =
-                LessSafeKey::new(UnboundKey::new(&AES_128_GCM, key).map_err(|e| e.to_string())?);
-            match less_safe_key.seal_in_place_append_tag(
-                Nonce::from(nonce),
-                Aad::from(aad),
-                &mut content,
-            ) {
-                Ok(()) => Ok(content),
-                Err(e) => Err(e.to_string()),
-            }
-        }
-        256 => {
-            let less_safe_key =
-                LessSafeKey::new(UnboundKey::new(&AES_256_GCM, key).map_err(|e| e.to_string())?);
-            match less_safe_key.seal_in_place_append_tag(
-                Nonce::from(nonce),
-                Aad::from(aad),
-                &mut content,
-            ) {
-                Ok(()) => Ok(content),
-                Err(e) => Err(e.to_string()),
-            }
-        }
-        _ => {
-            unreachable!()
-        }
-    }
+    let less_safe_key = match security_level {
+        128 => LessSafeKey::new(UnboundKey::new(&AES_128_GCM, key).map_err(|e| e.to_string())?),
+        256 => LessSafeKey::new(UnboundKey::new(&AES_256_GCM, key).map_err(|e| e.to_string())?),
+        _ => unreachable!(),
+    };
+
+    less_safe_key
+        .seal_in_place_append_tag(nonce, Aad::from(aad), &mut content)
+        .map(|_| Ok(content))
+        .map_err(|e| e.to_string())?
 }
 
 fn aes_gcm_decrypt(
@@ -111,27 +92,16 @@ fn aes_gcm_decrypt(
 ) -> Result<Vec<u8>, String> {
     let nonce = Nonce::try_assume_unique_for_key(nonce).map_err(|e| e.to_string())?;
 
-    match security_level {
-        128 => {
-            let less_safe_key =
-                LessSafeKey::new(UnboundKey::new(&AES_128_GCM, key).map_err(|e| e.to_string())?);
-            match less_safe_key.open_in_place(nonce, Aad::from(aad), &mut content) {
-                Ok(plain_text) => Ok(plain_text.to_vec()),
-                Err(e) => Err(e.to_string()),
-            }
-        }
-        256 => {
-            let less_safe_key =
-                LessSafeKey::new(UnboundKey::new(&AES_256_GCM, key).map_err(|e| e.to_string())?);
-            match less_safe_key.open_in_place(nonce, Aad::from(aad), &mut content) {
-                Ok(plain_text) => Ok(plain_text.to_vec()),
-                Err(e) => Err(e.to_string()),
-            }
-        }
-        _ => {
-            unreachable!()
-        }
-    }
+    let less_safe_key = match security_level {
+        128 => LessSafeKey::new(UnboundKey::new(&AES_128_GCM, key).map_err(|e| e.to_string())?),
+        256 => LessSafeKey::new(UnboundKey::new(&AES_256_GCM, key).map_err(|e| e.to_string())?),
+        _ => unreachable!(),
+    };
+
+    less_safe_key
+        .open_in_place(nonce, Aad::from(aad), &mut content)
+        .map(|plain_text| plain_text.to_vec())
+        .map_err(|e| e.to_string())
 }
 
 #[test]
